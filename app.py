@@ -1,5 +1,3 @@
-"""Smart Job Matcher - Streamlit App"""
-
 import streamlit as st
 import pandas as pd
 from scraper import scrape_and_save_jobs, extract_all_skills
@@ -9,27 +7,22 @@ from clustering_model import JobClusteringModel
 from daily_monitor import DailyJobMonitor
 import plotly.express as px
 
-# Page config
 st.set_page_config(
     page_title="Smart Job Matcher",
     page_icon="🎯",
     layout="centered"
 )
 
-# Initialize session state
 if 'jobs_df' not in st.session_state:
     st.session_state.jobs_df = pd.DataFrame()
 if 'available_skills' not in st.session_state:
     st.session_state.available_skills = []
 
-# Header
 st.title("🎯 Smart Job Matcher")
 st.markdown("*Scrape jobs → Save to CSV → Match with your skills*")
 
-# Sidebar - Data Management
 st.sidebar.header("📊 Data Management")
 
-# CSV Stats
 csv_stats = get_csv_stats()
 if csv_stats["exists"]:
     st.sidebar.success("✅ CSV Database Found")
@@ -37,7 +30,6 @@ if csv_stats["exists"]:
     st.sidebar.metric("Companies", csv_stats["companies"])
     st.sidebar.write(f"**Last Updated:** {csv_stats['last_updated']}")
     
-    # Show top skills from CSV
     if csv_stats.get("top_skills"):
         st.sidebar.write("**Top Skills:**")
         for skill in csv_stats["top_skills"][:5]:
@@ -46,7 +38,6 @@ else:
     st.sidebar.warning("⚠️ No CSV database found")
     st.sidebar.info("💡 Start by scraping some jobs!")
 
-# Load existing data
 if st.sidebar.button("📂 Load Existing Jobs"):
     with st.spinner("Loading jobs from CSV..."):
         st.session_state.jobs_df = load_jobs_from_csv()
@@ -56,7 +47,6 @@ if st.sidebar.button("📂 Load Existing Jobs"):
         else:
             st.sidebar.error("No jobs found in CSV")
 
-# Scraping Section
 st.header("🔍 Job Scraping")
 
 col1, col2 = st.columns([2, 1])
@@ -74,7 +64,6 @@ if st.button("🚀 Scrape New Jobs", type="primary"):
                 new_jobs = scrape_and_save_jobs(keyword, pages, update_csv=True)
                 
                 if not new_jobs.empty:
-                    # Reload all data
                     st.session_state.jobs_df = load_jobs_from_csv()
                     st.session_state.available_skills = extract_all_skills(st.session_state.jobs_df)
                     
@@ -94,12 +83,10 @@ if st.button("🚀 Scrape New Jobs", type="primary"):
             except Exception as e:
                 st.error(f"Error during scraping: {e}")
 
-# Skills Selection - Only show if we have data
 if st.session_state.available_skills:
     st.header("🛠️ Select Your Skills")
     st.info(f"📊 {len(st.session_state.available_skills)} skills available from {len(st.session_state.jobs_df)} jobs")
     
-    # Display skills in columns
     cols = st.columns(3)
     selected_skills = []
     
@@ -108,32 +95,27 @@ if st.session_state.available_skills:
             if st.checkbox(skill, key=f"skill_{i}"):
                 selected_skills.append(skill)
     
-    # Show selected skills
     if selected_skills:
         st.info(f"**Selected:** {', '.join(selected_skills)}")
         user_skills = ", ".join(selected_skills)
     else:
         user_skills = ""
     
-    # Custom skills
     with st.expander("➕ Add Custom Skills"):
         custom = st.text_input("Additional skills (comma-separated)")
         if custom:
             user_skills = f"{user_skills}, {custom}" if user_skills else custom
 
 elif not st.session_state.jobs_df.empty:
-    # We have jobs but no skills extracted
     st.header("🛠️ Enter Your Skills")
     st.warning("⚠️ No skills could be extracted from job data")
     user_skills = st.text_input("Skills (comma-separated)", 
                                placeholder="Python, SQL, Machine Learning")
 else:
-    # No data at all
     st.header("🛠️ Get Started")
     st.info("👆 Please scrape some jobs first to get started!")
     user_skills = ""
 
-# Job Matching - Only if we have both skills and jobs
 if user_skills and not st.session_state.jobs_df.empty:
     if st.button("🎯 Find Matching Jobs", type="primary"):
         with st.spinner("Finding matches..."):
@@ -145,11 +127,9 @@ if user_skills and not st.session_state.jobs_df.empty:
                 else:
                     st.success(f"✅ Found {len(matches)} matching jobs!")
                     
-                    # Display results
                     for _, job in matches.iterrows():
                         score = round(job.get('match_score', 0) * 100, 1)
                         
-                        # Color code scores
                         if score >= 70:
                             score_color = "🟢"
                         elif score >= 50:
@@ -172,7 +152,6 @@ if user_skills and not st.session_state.jobs_df.empty:
 elif user_skills and st.session_state.jobs_df.empty:
     st.warning("⚠️ No job data available. Please scrape jobs first or load existing data.")
 
-# Machine Learning Clustering Section
 st.header("🤖 Machine Learning Job Clustering")
 
 col1, col2, col3 = st.columns(3)
@@ -183,12 +162,10 @@ with col1:
             with st.spinner("Training unsupervised clustering model..."):
                 from clustering_model import JobClusteringModel
                 
-                # Train model
                 model = JobClusteringModel(n_clusters=4)
                 clustered_df, insights = model.train_model(st.session_state.jobs_df.copy())
                 model.save_model()
                 
-                # Store results in session state
                 st.session_state.clustered_df = clustered_df
                 st.session_state.cluster_insights = insights
                 st.session_state.model_trained = True
@@ -221,11 +198,9 @@ with col3:
         else:
             st.warning("Enter skills and load model first")
 
-# Display Cluster Analysis
 if 'cluster_insights' in st.session_state:
     st.subheader("📊 Discovered Job Categories")
     
-    # Create tabs for each cluster
     cluster_names = [f"📋 {info['name']}" for info in st.session_state.cluster_insights.values()]
     tabs = st.tabs(cluster_names)
     
@@ -248,18 +223,15 @@ if 'cluster_insights' in st.session_state:
                 for job in info['sample_jobs'][:2]:
                     st.write(f"• {job}")
 
-# Enhanced Job Matching with Clusters
 if 'clustered_df' in st.session_state and user_skills:
     if st.button("🎯 Find Jobs by ML Clusters", type="primary"):
         with st.spinner("Matching jobs using ML clusters..."):
             from clustering_model import JobClusteringModel
             
             try:
-                # Load model and predict user's cluster
                 model = JobClusteringModel.load_model()
                 user_cluster = model.predict_cluster(user_skills)
                 
-                # Get jobs from user's predicted cluster
                 cluster_jobs = st.session_state.clustered_df[
                     st.session_state.clustered_df['cluster'] == user_cluster
                 ]
@@ -268,7 +240,6 @@ if 'clustered_df' in st.session_state and user_skills:
                 
                 st.success(f"🎯 Found {len(cluster_jobs)} jobs in your category: **{cluster_name}**")
                 
-                # Display cluster-matched jobs
                 for _, job in cluster_jobs.iterrows():
                     with st.container():
                         st.markdown(f"""
@@ -282,6 +253,5 @@ if 'clustered_df' in st.session_state and user_skills:
             except Exception as e:
                 st.error(f"Error in ML matching: {e}")
 
-# Footer
 st.markdown("---")
 st.markdown("*Built with Streamlit • Real job data only*")

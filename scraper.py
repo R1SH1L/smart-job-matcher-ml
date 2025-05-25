@@ -7,13 +7,10 @@ from datetime import datetime
 from data_handler import save_jobs_to_csv, load_jobs_from_csv
 
 def scrape_and_save_jobs(keyword="software developer", pages=2, update_csv=True):
-    """Scrape jobs and automatically save to CSV"""
     print(f"🔍 Scraping '{keyword}' jobs...")
     
-    # Scrape fresh data
     df = scrape_jobs(keyword, pages)
     
-    # DEBUG: Check DataFrame structure
     print(f"📊 DataFrame info:")
     print(f"  Shape: {df.shape}")
     print(f"  Columns: {list(df.columns) if not df.empty else 'No columns'}")
@@ -24,7 +21,6 @@ def scrape_and_save_jobs(keyword="software developer", pages=2, update_csv=True)
         print(df.head(2))
         
         if update_csv:
-            # Add metadata
             df['scraped_at'] = datetime.now().isoformat()
             df['keyword'] = keyword
             
@@ -32,9 +28,8 @@ def scrape_and_save_jobs(keyword="software developer", pages=2, update_csv=True)
             print(f"  Shape: {df.shape}")
             print(f"  Columns: {list(df.columns)}")
             
-            # Import and save to CSV
             from data_handler import save_jobs_to_csv
-            save_jobs_to_csv(df, append=False)  # Use append=False for debugging
+            save_jobs_to_csv(df, append=False)  
             
             print(f"✅ Jobs saved successfully!")
     else:
@@ -43,7 +38,6 @@ def scrape_and_save_jobs(keyword="software developer", pages=2, update_csv=True)
     return df
 
 def scrape_jobs(keyword="software developer", pages=2):
-    """Core scraping function - Real data only"""
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
@@ -73,7 +67,7 @@ def scrape_jobs(keyword="software developer", pages=2):
                     if job_data and is_valid_job(job_data):
                         jobs_list.append(job_data)
                         
-                        if i < 3:  # Debug first 3 jobs
+                        if i < 3:  
                             print(f"✅ Job {len(jobs_list)}: {job_data['title']} at {job_data['company']}")
                     
                 except Exception as e:
@@ -88,7 +82,6 @@ def scrape_jobs(keyword="software developer", pages=2):
 
     print(f"🎉 Total valid jobs scraped: {len(jobs_list)}")
     
-    # Return DataFrame or empty DataFrame (NO DEMO JOBS)
     if jobs_list:
         return pd.DataFrame(jobs_list)
     else:
@@ -96,7 +89,6 @@ def scrape_jobs(keyword="software developer", pages=2):
         return pd.DataFrame()
 
 def extract_job_data(job, url, index):
-    """Extract data from single job element"""
     title_elem = job.find("h4")
     title = title_elem.get_text(strip=True) if title_elem else None
     
@@ -109,7 +101,6 @@ def extract_job_data(job, url, index):
     experience_elem = job.find("p", class_="emp-exp")
     experience = experience_elem.get_text(strip=True) if experience_elem else "Experience Not Specified"
     
-    # Extract skills
     key_skills_tag = job.find("span", string="Key Skills")
     if key_skills_tag:
         skills_elem = key_skills_tag.find_next("p")
@@ -117,7 +108,6 @@ def extract_job_data(job, url, index):
     else:
         skills = extract_skills_from_text(job.get_text())
     
-    # Extract summary
     summary_tag = job.find("span", string="Summary")
     if summary_tag:
         summary_elem = summary_tag.find_next("p")
@@ -125,7 +115,6 @@ def extract_job_data(job, url, index):
     else:
         summary = "No summary available"
     
-    # Get job link
     link_elem = job.find("a", href=True)
     if link_elem:
         href = link_elem['href']
@@ -133,7 +122,6 @@ def extract_job_data(job, url, index):
     else:
         link = url
     
-    # Only return if we have essential data
     if not title or not company:
         return None
     
@@ -155,7 +143,6 @@ def is_valid_job(job_data):
     title = job_data.get('title', '').lower()
     company = job_data.get('company', '').lower()
     
-    # Skip invalid entries
     invalid_keywords = [
         'filter by', 'toggle navigation', 'employer login', 'sign up',
         'forgot password', 'new clients', 'register now', 'job types'
@@ -165,7 +152,6 @@ def is_valid_job(job_data):
         if keyword in title or keyword in company:
             return False
     
-    # Must have reasonable length
     if len(job_data.get('title', '')) < 3 or len(job_data.get('company', '')) < 2:
         return False
     
@@ -177,9 +163,8 @@ def clean_text(text):
         return "Not specified"
     
     text = str(text).strip()
-    text = ' '.join(text.split())  # Remove extra whitespace
+    text = ' '.join(text.split())  
     
-    # Remove unwanted phrases
     unwanted = ['click here', 'read more', 'apply now', 'view details', 'learn more']
     for phrase in unwanted:
         text = text.replace(phrase, '')
@@ -187,7 +172,6 @@ def clean_text(text):
     return text.strip()
 
 def extract_skills_from_text(text):
-    """Extract technical skills from job text"""
     tech_keywords = [
         'Python', 'Java', 'JavaScript', 'React', 'Node.js', 'SQL', 'HTML', 'CSS',
         'Django', 'Flask', 'Spring', 'Angular', 'Vue', 'MongoDB', 'PostgreSQL',
@@ -203,12 +187,10 @@ def extract_skills_from_text(text):
         if skill.lower() in text_lower:
             found_skills.append(skill)
     
-    # Remove duplicates
     unique_skills = list(dict.fromkeys(found_skills))
     return ", ".join(unique_skills[:8]) if unique_skills else ""
 
 def extract_all_skills(job_df):
-    """Extract all unique skills from job listings"""
     if job_df.empty:
         return []
     
@@ -227,7 +209,6 @@ def extract_all_skills(job_df):
             if skill.lower() in skills_text.lower():
                 all_skills.add(skill)
     
-    # Sort by frequency
     skill_counts = {}
     for skill in all_skills:
         count = sum(1 for _, row in job_df.iterrows() 
